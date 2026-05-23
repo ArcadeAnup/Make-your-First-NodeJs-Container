@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAML Checker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0b0f14;
+            --surface: #0f1720;
+            --surface-2: #111c28;
+            --border: rgba(255, 255, 255, 0.10);
+            --border-2: rgba(255, 255, 255, 0.14);
+            --success: #2ee59d;
+            --error: #ff4d5e;
+            --warning: #ffcc66;
+            --btn-bg: rgba(255, 255, 255, 0.06);
+            --btn-hover: rgba(255, 255, 255, 0.10);
+            --text: rgba(255, 255, 255, 0.92);
+            --text-muted: rgba(255, 255, 255, 0.58);
+            --focus: rgba(46, 229, 157, 0.45);
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        body {
+            font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+            background-image: radial-gradient(1200px 600px at 20% 0%, rgba(46, 229, 157, 0.08), transparent 60%),
+                              radial-gradient(900px 500px at 80% 10%, rgba(99, 179, 237, 0.06), transparent 55%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: 1px;
+        }
+
+        header h1 span {
+            color: var(--success);
+        }
+
+        header p {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .editors {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .editors {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .editor-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .editor-container {
+            display: flex;
+            background: linear-gradient(180deg, var(--surface), var(--surface-2));
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            height: clamp(360px, 60vh, 600px);
+        }
+
+        .editor-container:focus-within {
+            border-color: var(--success);
+        }
+
+        .line-numbers {
+            background: #141414;
+            padding: 16px 12px;
+            text-align: right;
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.5;
+            user-select: none;
+            min-width: 48px;
+            overflow: hidden;
+            white-space: pre;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+
+        .line-numbers div {
+            font-family: inherit;
+        }
+
+        .editor-container textarea {
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            min-height: auto;
+            max-height: 100%;
+            height: 100%;
+        }
+
+        textarea {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text);
+            resize: none;
+            transition: border-color 0.2s;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--success);
+            box-shadow: 0 0 0 3px var(--focus), var(--shadow);
+        }
+
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        textarea[readonly] {
+            background: #141414;
+            cursor: default;
+        }
+
+        #outputYaml {
+            height: clamp(360px, 60vh, 600px);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--btn-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, transform 0.05s;
+        }
+
+        .btn:hover {
+            background: var(--btn-hover);
+            border-color: var(--border-2);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            border-color: rgba(46, 229, 157, 0.35);
+        }
+
+        .btn-primary:hover {
+            border-color: rgba(46, 229, 157, 0.6);
+        }
+
+        .btn-secondary {
+            border-color: rgba(99, 179, 237, 0.35);
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(99, 179, 237, 0.6);
+        }
+
+        .btn-danger {
+            border-color: rgba(255, 77, 94, 0.35);
+        }
+
+        .btn-danger:hover {
+            border-color: rgba(255, 77, 94, 0.6);
+        }
+
+        .status {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: var(--shadow);
+        }
+
+        .status.hidden {
+            display: none;
+        }
+
+        .status.success {
+            border-color: rgba(46, 229, 157, 0.35);
+        }
+
+        .status.error {
+            border-color: rgba(255, 77, 94, 0.35);
+        }
+
+        .status-icon {
+            font-size: 16px;
+            line-height: 1;
+            margin-top: 2px;
+        }
+
+        .status.success .status-icon {
+            color: var(--success);
+        }
+
+        .status.error .status-icon {
+            color: var(--error);
+        }
+
+        .status-message {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        .error-diagnostic {
+            margin-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.12);
+            padding-top: 10px;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .error-location {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .context-block {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 8px;
+            padding: 10px;
+            overflow-x: auto;
+            margin-bottom: 10px;
+        }
+
+        .context-line {
+            display: flex;
+            gap: 10px;
+            white-space: pre;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .line-number {
+            width: 32px;
+            text-align: right;
+            color: rgba(255, 255, 255, 0.45);
+            flex-shrink: 0;
+        }
+
+        .line-content {
+            color: rgba(255, 255, 255, 0.86);
+        }
+
+        .error-line {
+            color: rgba(255, 77, 94, 0.95);
+        }
+
+        .pointer-line {
+            color: rgba(255, 204, 102, 0.95);
+            font-size: 12px;
+            white-space: pre;
+            margin-left: 0;
+        }
+
+        .suggestion {
+            background: rgba(255, 204, 102, 0.08);
+            border: 1px solid rgba(255, 204, 102, 0.18);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .suggestion-label {
+            font-size: 11px;
+            color: rgba(255, 204, 102, 0.95);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .suggestion-text {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.88);
+            line-height: 1.6;
+        }
+
+        .copy-feedback {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(46, 229, 157, 0.12);
+            border: 1px solid rgba(46, 229, 157, 0.25);
+            color: rgba(255, 255, 255, 0.95);
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+        }
+
+        .copy-feedback.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Fix<span>My</span>YAML</h1>
+            <p>Validate and format YAML with helpful diagnostics. Runs on a small Node.js API.</p>
+        </header>
+
+        <div class="editors">
+            <div class="editor-wrapper">
+                <div class="editor-label">Input YAML</div>
+                <div class="editor-container">
+                    <div class="line-numbers" id="inputLines"></div>
+                    <textarea id="inputYaml" placeholder="Paste YAML here..."></textarea>
+                </div>
+            </div>
+
+            <div class="editor-wrapper">
+                <div class="editor-label">Output (Formatted)</div>
+                <textarea id="outputYaml" readonly placeholder="Formatted YAML will appear here..."></textarea>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="validateBtn" title="Ctrl/Cmd + Enter">Validate</button>
+            <button class="btn btn-secondary" id="formatBtn" title="Ctrl/Cmd + Shift + F">Format</button>
+            <button class="btn" id="copyBtn" disabled title="Ctrl/Cmd + Shift + C">Copy</button>
+            <button class="btn btn-danger" id="clearBtn">Clear</button>
+            <label class="btn" for="fileInput">Upload YAML</label>
+            <input class="file-input" type="file" id="fileInput" accept=".yml,.yaml,.txt">
+        </div>
+
+        <div class="status hidden" id="status">
+            <div class="status-icon">✔</div>
+            <div class="status-message"></div>
+        </div>
+
+        <div class="hint">
+            Shortcuts: <span>Ctrl/Cmd + Enter</span> validate • <span>Ctrl/Cmd + Shift + F</span> format • <span>Ctrl/Cmd + Shift + C</span> copy
+        </div>
+    </div>
+
+    <div class="copy-feedback" id="copyFeedback">Copied to clipboard</div>
+
+    <script>
+        const inputYaml = document.getElementById('inputYaml');
+        const outputYaml = document.getElementById('outputYaml');
+        const validateBtn = document.getElementById('validateBtn');
+        const formatBtn = document.getElementById('formatBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const copyFeedback = document.getElementById('copyFeedback');
+        const inputLines = document.getElementById('inputLines');
+
+        let isValid = false;
+
+        function updateLineNumbers() {
+            const lines = inputYaml.value.split('\n').length;
+            let html = '';
+            for (let i = 1; i <= lines; i++) {
+                html += `<div>${i}</div>`;
+            }
+            inputLines.innerHTML = html;
+        }
+
+        function syncScroll() {
+            inputLines.scrollTop = inputYaml.scrollTop;
+        }
+
+        inputYaml.addEventListener('input', () => {
+            updateLineNumbers();
+            syncScroll();
+            hideStatus();
+            outputYaml.value = '';
+            copyBtn.disabled = true;
+        });
+        inputYaml.addEventListener('scroll', syncScroll);
+
+        updateLineNumbers();
+
+        function normalizeRawErrorMessage(message) {
+            return String(message || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function getFriendlyError(message) {
+            const msg = normalizeRawErrorMessage(message).toLowerCase();
+            if (msg.includes('duplicated mapping key')) return 'Duplicate key detected.';
+            if (msg.includes('bad indentation') || msg.includes('indentation')) return 'Indentation error.';
+            if (msg.includes('unexpected end')) return 'Unexpected end of YAML.';
+            if (msg.includes('cannot read')) return 'YAML parse error.';
+            return 'YAML syntax error.';
+        }
+
+        function getSuggestion(message, input, mark) {
+            const msg = normalizeRawErrorMessage(message).toLowerCase();
+            if (msg.includes('duplicated mapping key')) return 'Rename one of the duplicate keys.';
+            if (msg.includes('indentation')) return 'Use consistent 2-space indentation (no tabs).';
+            if (msg.includes('unexpected end')) return 'Check for missing closing quotes/brackets or incomplete blocks.';
+            if (mark && typeof mark.line === 'number') {
+                const lines = input.split('\n');
+                const line = lines[mark.line] || '';
+                if (line.trim().endsWith(':')) return 'A mapping key ends with ":" but has no value. Add a value or indent a nested block.';
+            }
+            return null;
+        }
+
+        function lintInvalidListIndentation(input) {
+            const lines = input.split('\n');
+
+            for (let i = 0; i < lines.length - 1; i++) {
+                const line = lines[i];
+                const next = lines[i + 1];
+
+                const itemMatch = line.match(/^(\s*)-\s+(.*)$/);
+                if (!itemMatch) continue;
+
+                const itemIndent = itemMatch[1].length;
+                const itemValue = itemMatch[2] || '';
+
+                if (next.trim() === '' || next.trimStart().startsWith('#')) continue;
+
+                const nextIndent = (next.match(/^(\s*)/) || ['',''])[1].length;
+                const nextTrimmed = next.trimStart();
+
+                const isNestedList = nextTrimmed.startsWith('- ');
+                const isNestedMap = /^[^\s#][^:]*:\s*.*$/.test(nextTrimmed);
+                const isMultilineScalar = nextTrimmed.startsWith('|') || nextTrimmed.startsWith('>');
+
+                const looksLikePlainScalarItem = !itemValue.trimEnd().endsWith(':') && itemValue.trim() !== '|' && itemValue.trim() !== '>';
+                const isOneIndentDeeper = nextIndent === itemIndent + 2;
+
+                if (looksLikePlainScalarItem && isOneIndentDeeper && !isNestedList && !isNestedMap && !isMultilineScalar) {
+                    return {
+                        message: 'Invalid list indentation.',
+                        suggestion: 'List items must align consistently. If this is a second item, add `- ` in front of it.',
+                        mark: { line: i + 1, column: nextIndent }
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        function buildDiagnosticHTML(error, input) {
+            const normalizedRaw = normalizeRawErrorMessage(error.message).toLowerCase();
+            const friendlyMessage = error.friendlyOverride || getFriendlyError(error.message);
+            const suggestion = error.suggestion || getSuggestion(error.message, input, error.mark);
+
+            let html = `<div class="error-diagnostic">`;
+            html += `<div class="error-title">${friendlyMessage}</div>`;
+
+            if (error.mark) {
+                const line = error.mark.line + 1;
+                const column = error.mark.column + 1;
+                html += `<div class="error-location">Line ${line}, Column ${column}</div>`;
+
+                const lines = input.split('\n');
+                const startLine = Math.max(0, line - 3);
+                const endLine = Math.min(lines.length, line + 1);
+
+                html += `<div class="context-block">`;
+                for (let i = startLine; i < endLine; i++) {
+                    const isErrorLine = i === line - 1;
+                    html += `<div class="context-line">`;
+                    html += `<span class="line-number">${i + 1}</span>`;
+                    html += `<span class="line-content ${isErrorLine ? 'error-line' : ''}">${escapeHtml(lines[i])}</span>`;
+                    html += `</div>`;
+
+                    if (isErrorLine) {
+                        const pointer = ' '.repeat(column + 6) + '^';
+                        html += `<div class="pointer-line">${pointer}</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            if (suggestion) {
+                html += `<div class="suggestion">`;
+                html += `<div class="suggestion-label">Possible issue:</div>`;
+                html += `<div class="suggestion-text">${suggestion}</div>`;
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showStatus(message, type, diagnosticHTML = null) {
+            status.className = `status ${type}`;
+            status.querySelector('.status-icon').textContent = type === 'success' ? '✔' : '✖';
+
+            let content = message;
+            if (diagnosticHTML) content = message + diagnosticHTML;
+            status.querySelector('.status-message').innerHTML = content;
+        }
+
+        function hideStatus() {
+            status.className = 'status hidden';
+        }
+
+        async function callApi(path, yamlText) {
+            const resp = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ yaml: yamlText })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.ok) {
+                const err = data.error || { message: 'Request failed.', mark: null };
+                throw err;
+            }
+            return data;
+        }
+
+        async function validateYaml() {
+            const input = inputYaml.value.trim();
+
+            if (!input) {
+                showStatus('Please enter YAML content.', 'error');
+                isValid = false;
+                return;
+            }
+
+            const lintIssue = lintInvalidListIndentation(input);
+            if (lintIssue) {
+                isValid = false;
+                const diagnosticHTML = buildDiagnosticHTML(lintIssue, input);
+                showStatus('YAML is invalid:', 'error', diagnosticHTML);
+                return;
+            }
+
+            try {
+                await callApi('/api/validate', input);
+                isValid = true;
+                showStatus('YAML is valid', 'success');
+            } catch (error) {
+                isValid = false;
+                const diagnosticHTML = buildDiagnosticHTML(error, input);
+                showStatus('YAML is invalid:', 'error', diagnosticHTML);
+            }
+        }
+
+        function preprocessYaml(input) {
+            let cleaned = input
+                .replace(/\t/g, '  ')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n');
+
+            const lines = cleaned.split('\n');
+            const processedLines = [];
+            let lastWasRootKey = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].replace(/[ \t]+$/, '');
+
+                if (line.trim() === '') {
+                    processedLines.push('');
+                    lastWasRootKey = false;
+                    continue;
+                }
+
+                const leadingSpaces = line.match(/^(\s*)/)[1].length;
+                const trimmed = line.trimStart();
+                const trimmedLeading = leadingSpaces;
+                const looksLikeRootKey = /^[A-Za-z0-9_-][A-Za-z0-9_-]*\s*:/.test(trimmed);
+
+                if (lastWasRootKey && trimmedLeading > 0 && trimmedLeading <= 2 && looksLikeRootKey) {
+                    line = trimmed;
+                }
+
+                processedLines.push(line);
+                lastWasRootKey = looksLikeRootKey;
+            }
+
+            return processedLines.join('\n');
+        }
+
+        async function formatYaml() {
+            const input = inputYaml.value;
+
+            if (!input.trim()) {
+                showStatus('Please enter YAML content.', 'error');
+                outputYaml.value = '';
+                copyBtn.disabled = true;
+                return;
+            }
+
+            const cleaned = preprocessYaml(input);
+
+            try {
+                const data = await callApi('/api/format', cleaned);
+                outputYaml.value = data.formatted || '';
+                copyBtn.disabled = !outputYaml.value;
+                isValid = true;
+                showStatus('YAML formatted successfully', 'success');
+            } catch (error) {
+                isValid = false;
+                const diagnosticHTML = buildDiagnosticHTML(error, input);
+                showStatus('Cannot format:', 'error', diagnosticHTML);
+                outputYaml.value = '';
+                copyBtn.disabled = true;
+            }
+        }
+
+        function copyToClipboard() {
+            const text = outputYaml.value;
+            if (!text) return;
+
+            navigator.clipboard.writeText(text).then(() => {
+                copyFeedback.classList.add('show');
+                setTimeout(() => copyFeedback.classList.remove('show'), 2000);
+            }).catch(() => {
+                showStatus('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                inputYaml.value = e.target.result;
+                outputYaml.value = '';
+                copyBtn.disabled = true;
+                hideStatus();
+                updateLineNumbers();
+                syncScroll();
+            };
+            reader.onerror = function() {
+                showStatus('Failed to read file', 'error');
+            };
+            reader.readAsText(file);
+            fileInput.value = '';
+        }
+
+        function clearAll() {
+            inputYaml.value = '';
+            outputYaml.value = '';
+            copyBtn.disabled = true;
+            hideStatus();
+            updateLineNumbers();
+            syncScroll();
+        }
+
+        validateBtn.addEventListener('click', validateYaml);
+        formatBtn.addEventListener('click', formatYaml);
+        copyBtn.addEventListener('click', copyToClipboard);
+        clearBtn.addEventListener('click', clearAll);
+        fileInput.addEventListener('change', handleFileUpload);
+
+        document.addEventListener('keydown', (e) => {
+            const key = String(e.key || '').toLowerCase();
+            const mod = e.ctrlKey || e.metaKey;
+
+            if (!mod) return;
+
+            if (key === 'enter') {
+                e.preventDefault();
+                validateYaml();
+                return;
+            }
+
+            if (e.shiftKey && key === 'f') {
+                e.preventDefault();
+                formatYaml();
+                return;
+            }
+
+            if (e.shiftKey && key === 'c') {
+                if (copyBtn.disabled) return;
+                e.preventDefault();
+                copyToClipboard();
+            }
+        });
+    </script>
+</body>
+</html>
+
