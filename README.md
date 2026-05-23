@@ -49,7 +49,7 @@ Open `Dockerfile` and read it top-to-bottom:
    - Documents that the app listens on port 3000 inside the container.
    - You still need `-p 3000:3000` when running to access it from your computer.
    - So this concept is called port mapping
-  ![Port Mapping](img\portMapping.png)
+  ![Port Mapping](img/portMapping.png)
 
 7. `CMD ["npm", "start"]`
    - The default command when the container starts.
