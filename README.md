@@ -1,6 +1,4 @@
-<<<<<<< HEAD
-THis is a Learning project
-=======
+
 # Make Your First Node.js Container (Docker)
 
 This repo is a tiny Node.js + Express app (a YAML checker/formatter) packaged into a Docker container so you can learn how to build and run your first container.
